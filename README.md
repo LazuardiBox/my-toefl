@@ -22,14 +22,32 @@ bun run format       # biome format --write
 ## Project structure
 ```
 src/
-└─ app/              # Next.js App Router entry (layout, globals, landing page)
+├─ app/              # Next.js App Router entry (layout, globals, landing page)
+├─ client/           # Frontend-only utilities (no oRPC server code)
+│  ├─ assets/
+│  ├─ components/
+│  ├─ contexts/
+│  ├─ hooks/
+│  ├─ libraries/
+│  ├─ pages/
+│  └─ utilities/
+└─ server/           # oRPC backend
+   ├─ contexts/      # Service context builders (db/user/session loaders)
+   ├─ core/          # Singleton oRPC instance/wiring
+   ├─ functions/     # Pure business logic (no transport concerns)
+   ├─ libraries/     # Shared libs (e.g., drizzle.ts, redis.ts)
+   ├─ middlewares/   # oRPC middlewares used via `.use`
+   ├─ plugins/       # Transport adapters (Next.js routes, Hono, etc.)
+   ├─ routers/       # oRPC router composition (index.ts, nesting only)
+   ├─ schemas/       # Service schemas/validators
+   └─ services/      # Service groupings (optionally host function bundles)
 ```
 
 ## oRPC status & next steps
 - Packages are installed, but no routers/contracts are defined yet.
 - Suggested layout when you start:
-  - `src/server/` for oRPC routers, plugins, middleware, schemas.
-  - `src/client/` for typed API clients/hooks generated from your contract.
+  - `src/server/` holds your oRPC routers, plugins, middleware, schemas, and shared libs.
+  - `src/client/` holds typed API clients/hooks generated from your contract (or other UI helpers).
 - Typical flow:
   1) Define routers with `@orpc/server` (e.g., `src/server/routers/...`).
   2) Export a contract and hook it into your Next.js routes or handlers.
