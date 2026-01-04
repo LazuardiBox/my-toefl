@@ -1,36 +1,39 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# toefl.wiki (orpc)
 
-## Getting Started
+Next.js app bootstrapped with Bun and pre-wired to use oRPC for an end-to-end type-safe API. The API surface is **not implemented yet**—dependencies are installed so you can start wiring oRPC routers when ready.
 
-First, run the development server:
+## Stack
+- Next.js 16 (App Router)
+- React 19
+- Bun runtime
+- oRPC (`@orpc/server` and `@orpc/client`)
+- Biome for lint/format
 
+## Getting started
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+bun install          # install deps
+bun run dev          # start Next.js dev server
+bun run build        # production build
+bun run start        # run built app
+bun run lint         # biome check
+bun run format       # biome format --write
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Project structure
+```
+src/
+└─ app/              # Next.js App Router entry (layout, globals, landing page)
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## oRPC status & next steps
+- Packages are installed, but no routers/contracts are defined yet.
+- Suggested layout when you start:
+  - `src/server/` for oRPC routers, plugins, middleware, schemas.
+  - `src/client/` for typed API clients/hooks generated from your contract.
+- Typical flow:
+  1) Define routers with `@orpc/server` (e.g., `src/server/routers/...`).
+  2) Export a contract and hook it into your Next.js routes or handlers.
+  3) Consume it in the client with `@orpc/client` (hooks/helpers under `src/client`).
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Notes
+- This repo currently ships the default Next.js landing page in `src/app/page.tsx`; replace it with your UI and wire it to your oRPC client once the API is ready.
