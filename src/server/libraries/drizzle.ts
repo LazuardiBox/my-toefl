@@ -3,6 +3,8 @@
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 
+import * as schema from "@/server/libraries/authSchema";
+
 const client = postgres(process.env.DATABASE_URL!, {
   ssl: "require",
   connect_timeout: 1,
@@ -10,7 +12,7 @@ const client = postgres(process.env.DATABASE_URL!, {
   max_lifetime: 60,
 });
 
-export const db = drizzle(client);
+export const db = drizzle(client, { schema });
 
 export type Drizzle =
   | typeof db

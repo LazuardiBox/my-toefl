@@ -3,8 +3,8 @@
 import { randomBytes } from "node:crypto";
 import { onStart } from "@orpc/server";
 import { z } from "zod";
-import { orpc } from "@/server/core";
 import type { AppContext } from "@/server/contexts";
+import { orpc } from "@/server/core";
 
 /* ----------------- import function ----------------------- */
 
@@ -15,7 +15,7 @@ import { databaseMiddleware } from "@/server/middlewares/databaseMiddleware";
 
 const hello_route = {
   method: "GET",
-  path: "/hello",
+  path: "/hello-public",
 } as const;
 
 /* ----------------- schema ----------------------- */
@@ -57,7 +57,7 @@ async function hello_function({ context }: { context: AppContext }) {
 
 /* ----------------- router ----------------------- */
 
-export const hello = orpc
+export const hello_public = orpc
   .use(databaseMiddleware)
   .use(onStart(hello_cycle_start))
   .route(hello_route)
