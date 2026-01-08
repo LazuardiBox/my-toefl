@@ -52,272 +52,101 @@ src/
   2) Export a contract and hook it into your Next.js routes or handlers.
   3) Consume it in the client with `@orpc/client` (hooks/helpers under `src/client`).
 
-## Example: Hello endpoint (`/orpc/hello`)
-Core/context:
-- `src/server/core/index.ts` – `orpc` instance typed with `AppContext`.
-- `src/server/contexts/index.ts` – defines `AppContext` (db + request lifecycle metadata), filled by middleware.
+## Documentation
+Detailed documentation for specific parts of the system can be found in the `docs/` directory:
+- [Auth Middleware Flow](docs/authMiddleware.md)
+- [Database Middleware](docs/databaseMiddleware.md)
+- [Public oRPC Usage](docs/publicUsage.md)
+- [Protected oRPC Usage](docs/protectedUsage.md)
+
+## Example: Hello endpoint (`/orpc/hello-public` & `/orpc/hello-protected`)
 
 Files involved:
 - `src/server/core/index.ts` – `orpc` instance with context typing (`AppContext`).
-- `src/server/libraries/drizzle.ts` – Drizzle base client and types for base/transaction DB.
-- `src/server/contexts/index.ts` – `AppContext` shape (db + timing/status fields).
-- `src/server/middlewares/databaseMiddleware.ts` – wraps requests in a transaction and injects `db`.
-- `src/server/functions/hello.function.ts` – pure logic: ping DB and return timing.
-- `src/server/services/hello.service.ts` – route/input/output + lifecycle hooks, returns metadata.
-- `src/server/routers/index.ts` – mounts the domain router: `orpc.router({ hello })`.
-- `src/client/utilities/api.ts` – oRPC client (`api.hello({})`), respects `ORPC_SERVER_URL`/`NEXT_PUBLIC_APP_URL` or window origin.
-- `src/client/hooks/hello.ts` – React Query hook calling `api.hello`.
-- `src/app/(pages)/page.tsx` – UI that triggers the call and renders JSON.
+- `src/server/libraries/drizzle.ts` – Drizzle client with `authSchema` registered.
+- `src/server/contexts/index.ts` – `AppContext` shape including `req` and `auth` status.
+- `src/server/middlewares/databaseMiddleware.ts` – wrappers for transaction safety.
+- `src/server/middlewares/authMiddleware.ts` – cookie-based auth verification (cookie -> db check).
+- `src/server/functions/hello.function.ts` – shared pure logic (database ping).
+- `src/server/services/public/hello.service.ts` – Public endpoint example.
+- `src/server/services/auth/hello.service.ts` – Protected endpoint example.
+- `src/server/routers/index.ts` – mounts routers with kebab-case keys.
 
-Call shape: RPC path `/orpc/hello` (no auto-fetch; button triggers `refetch`).
+### Code Snippets
 
-Code:
-```ts
-// server/core/orpc.ts
-
-import { os } from '@orpc/server'
-import type { AppContext } from '@/server/contexts'
-
-export const orpc = os.$context<AppContext>()
-```
-
+**Context Definition**
 ```ts
 // server/contexts/index.ts
-
-import type { Drizzle } from '@/server/libraries/drizzle'
+import type { Drizzle } from "@/server/libraries/drizzle";
 
 export type AppContext = {
-    db: Drizzle
-    requestId: string
-    requestedAt: string
-    status: string
-    error?: string
-}
+  db: Drizzle;
+  req: Request;
+  requestId: string;
+  status: string;
+  auth: "true" | "false";
+};
 ```
 
+**Drizzle Client**
 ```ts
 // server/libraries/drizzle.ts
+import { drizzle } from "drizzle-orm/postgres-js";
+import postgres from "postgres";
+import * as schema from "@/server/libraries/authSchema";
 
-import { drizzle } from 'drizzle-orm/postgres-js'
-import postgres from 'postgres'
-
-// biome-ignore lint/style/noNonNullAssertion: <explanation>
 const client = postgres(process.env.DATABASE_URL!, {
-  ssl: 'require',
-  connect_timeout: 1,
-  idle_timeout: 5,
-  max_lifetime: 60,
-})
+  ssl: "require",
+  // ... timeouts
+});
 
-export const db = drizzle(client)
-
-export type Drizzle =
-  | typeof db
-  | Parameters<Parameters<typeof db.transaction>[0]>[0]
+export const db = drizzle(client, { schema });
 ```
 
+**Auth Middleware (High Performance)**
 ```ts
-// src/server/functions/pingDatabase.ts
+// server/middlewares/authMiddleware.ts
+export const authMiddleware = orpc
+    .$context<AppContext>()
+    .middleware(async ({ context, next }) => {
+        // 1. Check & Parse Cookie Locally (No external Fetch)
+        const cookieHeader = context.req.headers.get("cookie");
+        // ... (extract token via Regex)
 
-import type { Drizzle } from '@/server/libraries/drizzle'
+        // 2. Direct Index-Optimized DB Lookup
+        // ... (query session table for token existence)
 
-export async function pingDatabase(database: Drizzle, maxMs = 28) {
-  const startedAt = performance.now()
-
-  await database.execute('select 1')
-
-  const endedAt = performance.now()
-  const duration = endedAt - startedAt
-
-  if (duration > maxMs) {
-    throw new Error()
-  }
-
-  return {
-    response: `PONG in ${Math.round(duration)}ms`,
-  }
-}
-```
-
-```ts
-// server/middlewares/databaseMiddleware.ts
-
-import type { AppContext } from "@/server/contexts";
-import { orpc } from "@/server/core";
-import { db } from "@/server/libraries/drizzle";
-
-export const databaseMiddleware = orpc
-  .$context<AppContext>()
-  .middleware(async ({ context, next }) => {
-    return db.transaction(async (tx) => {
-      return next({
-        context: {
-          ...context,
-          db: tx,
-        },
-      });
+        return next({
+            context: { ...context, auth: isValid ? "true" : "false" },
+        });
     });
+```
+
+**Service Example (Protected)**
+```ts
+// server/services/auth/hello.service.ts
+export const hello_protected = orpc
+  .use(authMiddleware)
+  .use(databaseMiddleware)
+  .use(onStart(hello_cycle_start))
+  .route({ method: "GET", path: "/hello-protected" })
+  .input(z.object({}).optional())
+  .output(hello_output)
+  .handler(async ({ context }) => {
+     if (context.auth !== "true") {
+         return { status: "HTTP/1.1 401 Unauthorized", ... };
+     }
+     // ... business logic
   });
 ```
 
+**Router Composition**
 ```ts
-// server/services/hello.service.ts
-
-/* ----------------- import module ----------------------- */
-
-import { randomBytes } from "node:crypto";
-import { onStart } from "@orpc/server";
-import { z } from "zod";
-import { orpc } from "@/server/core";
-import type { AppContext } from "@/server/contexts";
-
-/* ----------------- import function ----------------------- */
-
-import { pingDatabase } from "@/server/functions/hello.function";
-import { databaseMiddleware } from "@/server/middlewares/databaseMiddleware";
-
-/* ----------------- expose router ----------------------- */
-
-const hello_route = {
-  method: "GET",
-  path: "/hello",
-} as const;
-
-/* ----------------- schema ----------------------- */
-
-const hello_input = z.object({}).optional();
-const hello_output = z.object({
-  result: z.string(),
-  status: z
-    .literal("HTTP/1.1 200 OK")
-    .or(z.literal("HTTP/1.1 500 Internal Server Error")),
-  requestId: z.string(),
+// server/routers/index.ts
+export const appRouter = orpc.router({
+  "hello-public": hello_public,
+  "hello-protected": hello_protected,
 });
-
-/* ----------------- lifecycle ----------------------- */
-
-function hello_cycle_start({ context }: { context: AppContext }) {
-  context.requestId = `${randomBytes(4).toString("hex")}-${Date.now()}`;
-}
-
-/* ----------------- function ----------------------- */
-
-async function hello_function({ context }: { context: AppContext }) {
-  try {
-    const result = await pingDatabase(context.db);
-
-    return {
-      status: "HTTP/1.1 200 OK" as const,
-      requestId: context.requestId,
-      result: result.response,
-    };
-  } catch (_error) {
-    return {
-      status: "HTTP/1.1 500 Internal Server Error" as const,
-      requestId: context.requestId,
-      result: "An unexpected error occurred while processing your request.",
-    };
-  }
-}
-
-/* ----------------- router ----------------------- */
-
-export const hello = orpc
-  .use(databaseMiddleware)
-  .use(onStart(hello_cycle_start))
-  .route(hello_route)
-  .input(hello_input)
-  .output(hello_output)
-  .handler(hello_function);
-
-```
-
-```tsx
-"use client";
-
-import { useQueryClient } from "@tanstack/react-query";
-
-import { useState } from "react";
-
-import { useHelloQuery } from "@/client/hooks/hello";
-
-function HelloContent() {
-  const queryClient = useQueryClient();
-  const [hasRequested, setHasRequested] = useState(false);
-  const { data, isFetching, error, refetch, isFetched } = useHelloQuery(false);
-
-  const statusLabel = (() => {
-    if (isFetching) return "Loading";
-    if (error) return "Error";
-    if (hasRequested && isFetched) return "Success";
-    return "Idle";
-  })();
-
-  return (
-    <div className="w-full max-w-3xl space-y-6 rounded-2xl border border-zinc-200 bg-white/80 p-6 shadow-sm backdrop-blur">
-      <div className="flex items-center justify-between">
-        <div className="space-y-1">
-          <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">
-            Hello Endpoint
-          </p>
-          <p className="text-xl font-semibold text-zinc-900">
-            {data?.result ?? "Call the API to see the response"}
-          </p>
-        </div>
-        <span className="rounded-full border border-zinc-200 bg-zinc-100 px-3 py-1 text-xs font-medium uppercase tracking-wide text-zinc-700">
-          {statusLabel}
-        </span>
-      </div>
-      {error ? (
-        <p className="text-sm text-red-600">
-          Error: {(error as Error).message ?? "Unknown error"}
-        </p>
-      ) : null}
-      <div className="space-y-2">
-        <p className="text-sm font-semibold text-zinc-800">JSON Response</p>
-        <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-4 font-mono text-sm text-zinc-800">
-          <pre className="whitespace-pre-wrap break-words">
-            {data
-              ? JSON.stringify(data, null, 2)
-              : "// No response yet. Call the API to view the payload."}
-          </pre>
-        </div>
-      </div>
-      <div className="flex gap-3">
-        <button
-          type="button"
-          onClick={async () => {
-            setHasRequested(true);
-            await refetch();
-          }}
-          className="flex flex-1 items-center justify-center rounded-md bg-black px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-zinc-800 active:bg-zinc-900 disabled:cursor-not-allowed disabled:opacity-60"
-          disabled={isFetching}
-        >
-          {isFetching ? "Calling..." : "Call API"}
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            setHasRequested(false);
-            queryClient.resetQueries({ queryKey: ["hello"] });
-          }}
-          className="flex items-center justify-center rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-800 transition hover:bg-zinc-100 active:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-60"
-          disabled={isFetching && hasRequested}
-        >
-          Reset
-        </button>
-      </div>
-    </div>
-  );
-}
-
-export default function Home() {
-  return (
-    <main className="flex min-h-screen items-center justify-center bg-zinc-50 px-4 py-16 font-sans">
-      <HelloContent />
-    </main>
-  );
-}
 ```
 
 ## Notes
