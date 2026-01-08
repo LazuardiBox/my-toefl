@@ -129,11 +129,12 @@ export async function pingDatabase(database: Drizzle) {
 ```ts
 // server/middlewares/databaseMiddleware.ts
 
-import { orpc } from '@/server/core'
-import { db } from '@/server/libraries/drizzle'
+import type { AppContext } from "@/server/contexts";
+import { orpc } from "@/server/core";
+import { db } from "@/server/libraries/drizzle";
 
 export const databaseMiddleware = orpc
-  .$context<Record<string, never>>()
+  .$context<AppContext>()
   .middleware(async ({ context, next }) => {
     return db.transaction(async (tx) => {
       return next({
@@ -141,9 +142,9 @@ export const databaseMiddleware = orpc
           ...context,
           db: tx,
         },
-      })
-    })
-  })
+      });
+    });
+  });
 ```
 
 ```ts
@@ -156,7 +157,7 @@ import { z } from "zod";
 import { orpc } from "@/server/core";
 import { pingDatabase } from "@/server/functions/hello.function";
 import { databaseMiddleware } from "@/server/middlewares/databaseMiddleware";
-import type { AppContext } from "../contexts";
+import type { AppContext } from "@/server/contexts";
 
 /* ----------------- expose procedure ----------------------- */
 
