@@ -104,10 +104,16 @@ import postgres from 'postgres'
 // biome-ignore lint/style/noNonNullAssertion: <explanation>
 const client = postgres(process.env.DATABASE_URL!, {
   ssl: 'require',
+  connect_timeout: 1,
+  idle_timeout: 5,
+  max_lifetime: 60,
 })
 
 export const db = drizzle(client)
-export type Drizzle = typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0]
+
+export type Drizzle =
+  | typeof db
+  | Parameters<Parameters<typeof db.transaction>[0]>[0]
 ```
 
 ```ts
@@ -115,13 +121,20 @@ export type Drizzle = typeof db | Parameters<Parameters<typeof db.transaction>[0
 
 import type { Drizzle } from '@/server/libraries/drizzle'
 
-export async function pingDatabase(database: Drizzle) {
+export async function pingDatabase(database: Drizzle, maxMs = 28) {
   const startedAt = performance.now()
+
   await database.execute('select 1')
+
   const endedAt = performance.now()
+  const duration = endedAt - startedAt
+
+  if (duration > maxMs) {
+    throw new Error()
+  }
 
   return {
-    response: `PONG in ${Math.round(endedAt - startedAt)}ms`,
+    response: `PONG in ${Math.round(duration)}ms`,
   }
 }
 ```
@@ -168,9 +181,12 @@ const hello_route = {
 
 /* ----------------- schema procedure ----------------------- */
 
+const hello_input = z.object({}).optional();
 const hello_output = z.object({
   result: z.string(),
-  status: z.literal("HTTP/1.1 200 OK").or(z.literal("HTTP/1.1 500 Internal Server Error")),
+  status: z
+    .literal("HTTP/1.1 200 OK")
+    .or(z.literal("HTTP/1.1 500 Internal Server Error")),
   requestId: z.string(),
 });
 
@@ -205,6 +221,7 @@ export const hello = orpc
   .use(databaseMiddleware)
   .use(onStart(hello_cycle_start))
   .route(hello_route)
+  .input(hello_input)
   .output(hello_output)
   .handler(hello_function);
 ```

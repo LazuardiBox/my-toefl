@@ -6,7 +6,7 @@ import { z } from "zod";
 import { orpc } from "@/server/core";
 import { pingDatabase } from "@/server/functions/hello.function";
 import { databaseMiddleware } from "@/server/middlewares/databaseMiddleware";
-import type { AppContext } from "../contexts";
+import type { AppContext } from "@/server/contexts";
 
 /* ----------------- expose procedure ----------------------- */
 
@@ -17,6 +17,7 @@ const hello_route = {
 
 /* ----------------- schema procedure ----------------------- */
 
+const hello_input = z.object({}).optional();
 const hello_output = z.object({
   result: z.string(),
   status: z
@@ -56,5 +57,6 @@ export const hello = orpc
   .use(databaseMiddleware)
   .use(onStart(hello_cycle_start))
   .route(hello_route)
+  .input(hello_input)
   .output(hello_output)
   .handler(hello_function);
