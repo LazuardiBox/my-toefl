@@ -1,3 +1,6 @@
-import { os } from "@orpc/server";
+// server/core/orpc.ts
 
-export const orpc = os;
+import { os } from "@orpc/server";
+import type { AppContext } from "@/server/contexts";
+
+export const orpc = os.$context<AppContext>();

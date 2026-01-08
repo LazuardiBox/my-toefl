@@ -1,8 +1,13 @@
-import postgres from "postgres";
+// server/libraries/drizzle.ts
+
 import { drizzle } from "drizzle-orm/postgres-js";
+import postgres from "postgres";
 
 const client = postgres(process.env.DATABASE_URL!, {
-    ssl: "require",
+  ssl: "require",
 });
 
-export const database = drizzle(client);
+export const db = drizzle(client);
+export type Drizzle =
+  | typeof db
+  | Parameters<Parameters<typeof db.transaction>[0]>[0];

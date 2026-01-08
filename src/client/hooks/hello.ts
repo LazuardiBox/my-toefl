@@ -5,7 +5,7 @@ import { api } from "@/client/utilities/api";
 export function useHelloQuery(enabled = false) {
   return useQuery({
     queryKey: ["hello"],
-    queryFn: () => api.test.hello({}),
+    queryFn: () => api.hello({}),
     enabled,
   });
 }

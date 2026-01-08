@@ -1,30 +1,53 @@
 "use client";
 
+import { useQueryClient } from "@tanstack/react-query";
+
 import { useState } from "react";
 
 import { useHelloQuery } from "@/client/hooks/hello";
 
 function HelloContent() {
+  const queryClient = useQueryClient();
   const [hasRequested, setHasRequested] = useState(false);
-  const { data, isFetching, error, refetch } = useHelloQuery(false);
+  const { data, isFetching, error, refetch, isFetched } = useHelloQuery(false);
+
+  const statusLabel = (() => {
+    if (isFetching) return "Loading";
+    if (error) return "Error";
+    if (hasRequested && isFetched) return "Success";
+    return "Idle";
+  })();
 
   return (
-    <div className="w-full max-w-md space-y-4 rounded-2xl border border-zinc-200 bg-white/80 p-6 shadow-sm backdrop-blur">
-      <div className="space-y-1">
-        <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">
-          Hello Endpoint
-        </p>
-        <p className="text-xl font-semibold text-zinc-900">
-          {hasRequested
-            ? data?.message ?? "No message yet"
-            : "Click the button to call the API"}
-        </p>
+    <div className="w-full max-w-3xl space-y-6 rounded-2xl border border-zinc-200 bg-white/80 p-6 shadow-sm backdrop-blur">
+      <div className="flex items-center justify-between">
+        <div className="space-y-1">
+          <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">
+            Hello Endpoint
+          </p>
+          <p className="text-xl font-semibold text-zinc-900">
+            {data?.result ?? "Call the API to see the response"}
+          </p>
+        </div>
+        <span className="rounded-full border border-zinc-200 bg-zinc-100 px-3 py-1 text-xs font-medium uppercase tracking-wide text-zinc-700">
+          {statusLabel}
+        </span>
       </div>
       {error ? (
         <p className="text-sm text-red-600">
           Error: {(error as Error).message ?? "Unknown error"}
         </p>
       ) : null}
+      <div className="space-y-2">
+        <p className="text-sm font-semibold text-zinc-800">JSON Response</p>
+        <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-4 font-mono text-sm text-zinc-800">
+          <pre className="whitespace-pre-wrap break-words">
+            {data
+              ? JSON.stringify(data, null, 2)
+              : "// No response yet. Call the API to view the payload."}
+          </pre>
+        </div>
+      </div>
       <div className="flex gap-3">
         <button
           type="button"
@@ -39,7 +62,10 @@ function HelloContent() {
         </button>
         <button
           type="button"
-          onClick={() => setHasRequested(false)}
+          onClick={() => {
+            setHasRequested(false);
+            queryClient.resetQueries({ queryKey: ["hello"] });
+          }}
           className="flex items-center justify-center rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-800 transition hover:bg-zinc-100 active:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-60"
           disabled={isFetching && hasRequested}
         >

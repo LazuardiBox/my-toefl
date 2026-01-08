@@ -5,16 +5,7 @@ import type { RouterClient } from "@orpc/server";
 import type { appRouter } from "@/server/routers";
 
 const rpcLink = new RPCLink({
-  url: () => {
-    if (typeof window !== "undefined") {
-      return `${window.location.origin}/orpc`;
-    }
-    const origin =
-      process.env.ORPC_SERVER_URL ??
-      process.env.NEXT_PUBLIC_APP_URL ??
-      "http://localhost:3000";
-    return `${origin}/orpc`;
-  },
+  url: `${process.env.NEXT_PUBLIC_ORPC_SERVER_URL}/orpc`,
   headers: async () => {
     if (typeof window !== "undefined") {
       return new Headers();
