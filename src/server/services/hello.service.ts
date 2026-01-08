@@ -1,21 +1,24 @@
-/* ----------------- import procedure ----------------------- */
+/* ----------------- import module ----------------------- */
 
 import { randomBytes } from "node:crypto";
 import { onStart } from "@orpc/server";
 import { z } from "zod";
 import { orpc } from "@/server/core";
-import { pingDatabase } from "@/server/functions/hello.function";
-import { databaseMiddleware } from "@/server/middlewares/databaseMiddleware";
 import type { AppContext } from "@/server/contexts";
 
-/* ----------------- expose procedure ----------------------- */
+/* ----------------- import function ----------------------- */
+
+import { pingDatabase } from "@/server/functions/hello.function";
+import { databaseMiddleware } from "@/server/middlewares/databaseMiddleware";
+
+/* ----------------- expose router ----------------------- */
 
 const hello_route = {
   method: "GET",
   path: "/hello",
 } as const;
 
-/* ----------------- schema procedure ----------------------- */
+/* ----------------- schema ----------------------- */
 
 const hello_input = z.object({}).optional();
 const hello_output = z.object({
@@ -26,13 +29,13 @@ const hello_output = z.object({
   requestId: z.string(),
 });
 
-/* ----------------- lifecycle hooks ----------------------- */
+/* ----------------- lifecycle ----------------------- */
 
 function hello_cycle_start({ context }: { context: AppContext }) {
   context.requestId = `${randomBytes(4).toString("hex")}-${Date.now()}`;
 }
 
-/* ----------------- function hooks ----------------------- */
+/* ----------------- function ----------------------- */
 
 async function hello_function({ context }: { context: AppContext }) {
   try {
@@ -51,7 +54,8 @@ async function hello_function({ context }: { context: AppContext }) {
     };
   }
 }
-/* ----------------- router procedure ----------------------- */
+
+/* ----------------- router ----------------------- */
 
 export const hello = orpc
   .use(databaseMiddleware)
