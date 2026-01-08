@@ -161,25 +161,29 @@ export const databaseMiddleware = orpc
 ```
 
 ```ts
+// server/services/hello.service.ts
 
-/* ----------------- import procedure ----------------------- */
+/* ----------------- import module ----------------------- */
 
 import { randomBytes } from "node:crypto";
 import { onStart } from "@orpc/server";
 import { z } from "zod";
 import { orpc } from "@/server/core";
-import { pingDatabase } from "@/server/functions/hello.function";
-import { databaseMiddleware } from "@/server/middlewares/databaseMiddleware";
 import type { AppContext } from "@/server/contexts";
 
-/* ----------------- expose procedure ----------------------- */
+/* ----------------- import function ----------------------- */
+
+import { pingDatabase } from "@/server/functions/hello.function";
+import { databaseMiddleware } from "@/server/middlewares/databaseMiddleware";
+
+/* ----------------- expose router ----------------------- */
 
 const hello_route = {
   method: "GET",
   path: "/hello",
 } as const;
 
-/* ----------------- schema procedure ----------------------- */
+/* ----------------- schema ----------------------- */
 
 const hello_input = z.object({}).optional();
 const hello_output = z.object({
@@ -190,13 +194,13 @@ const hello_output = z.object({
   requestId: z.string(),
 });
 
-/* ----------------- lifecycle hooks ----------------------- */
+/* ----------------- lifecycle ----------------------- */
 
 function hello_cycle_start({ context }: { context: AppContext }) {
   context.requestId = `${randomBytes(4).toString("hex")}-${Date.now()}`;
 }
 
-/* ----------------- function hooks ----------------------- */
+/* ----------------- function ----------------------- */
 
 async function hello_function({ context }: { context: AppContext }) {
   try {
@@ -215,7 +219,8 @@ async function hello_function({ context }: { context: AppContext }) {
     };
   }
 }
-/* ----------------- router procedure ----------------------- */
+
+/* ----------------- router ----------------------- */
 
 export const hello = orpc
   .use(databaseMiddleware)
@@ -224,57 +229,7 @@ export const hello = orpc
   .input(hello_input)
   .output(hello_output)
   .handler(hello_function);
-```
 
-```ts
-// server/routers/index.ts
-
-import { orpc } from "@/server/core";
-import { hello } from "@/server/services/hello.service";
-
-/* ----------------- router procedure ----------------------- */
-
-export const appRouter = orpc.router({
-  hello,
-});
-```
-
-```ts
-import { createORPCClient } from "@orpc/client";
-import { RPCLink } from "@orpc/client/fetch";
-import type { RouterClient } from "@orpc/server";
-
-import type { appRouter } from "@/server/routers";
-
-const rpcLink = new RPCLink({
-  url: `${process.env.NEXT_PUBLIC_ORPC_SERVER_URL}/orpc`,
-  headers: async () => {
-    if (typeof window !== "undefined") {
-      return new Headers();
-    }
-
-    const { headers } = await import("next/headers");
-    return new Headers(await headers());
-  },
-});
-
-type AppRouterClient = RouterClient<typeof appRouter>;
-
-export const api = createORPCClient<AppRouterClient>(rpcLink);
-```
-
-```ts
-// src/client/hooks/hello.ts
-import { useQuery } from "@tanstack/react-query";
-import { api } from "@/client/utilities/api";
-
-export function useHelloQuery(enabled = false) {
-  return useQuery({
-    queryKey: ["hello"],
-    queryFn: () => api.hello({}),
-    enabled,
-  });
-}
 ```
 
 ```tsx
