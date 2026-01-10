@@ -82,6 +82,7 @@ export const dbMiddleware = orpc.middleware(async ({ context, next }) => {
 
 /* ----------------- oRPC HTTP Response Function ----------------------- */
 
+/** @public */
 export function InternalServerError(context: AppContext) {
   return new ORPCError("HTTP/1.1 500 Internal Server Error", {
     status: 500,
@@ -92,6 +93,7 @@ export function InternalServerError(context: AppContext) {
   });
 }
 
+/** @public */
 export function Unauthorized(context: AppContext) {
   return new ORPCError("HTTP/1.1 401 Unauthorized", {
     status: 401,
@@ -102,6 +104,7 @@ export function Unauthorized(context: AppContext) {
   });
 }
 
+/** @public */
 export function BadRequest(context: AppContext) {
   return new ORPCError("HTTP/1.1 400 Bad Request", {
     status: 400,
@@ -112,6 +115,7 @@ export function BadRequest(context: AppContext) {
   });
 }
 
+/** @public */
 export function Forbidden(context: AppContext) {
   return new ORPCError("HTTP/1.1 403 Forbidden", {
     status: 403,
@@ -122,6 +126,7 @@ export function Forbidden(context: AppContext) {
   });
 }
 
+/** @public */
 export function NotFound(context: AppContext) {
   return new ORPCError("HTTP/1.1 404 Not Found", {
     status: 404,
@@ -132,6 +137,7 @@ export function NotFound(context: AppContext) {
   });
 }
 
+/** @public */
 export function MethodNotAllowed(context: AppContext) {
   return new ORPCError("HTTP/1.1 405 Method Not Allowed", {
     status: 405,
@@ -142,6 +148,7 @@ export function MethodNotAllowed(context: AppContext) {
   });
 }
 
+/** @public */
 export function NotAcceptable(context: AppContext) {
   return new ORPCError("HTTP/1.1 406 Not Acceptable", {
     status: 406,
@@ -152,6 +159,7 @@ export function NotAcceptable(context: AppContext) {
   });
 }
 
+/** @public */
 export function Success(context: AppContext, result: string) {
   return {
     data: {
