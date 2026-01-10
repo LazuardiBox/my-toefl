@@ -1,10 +1,10 @@
 # Database Middleware Documentation
 
-This document explains the usage and behavior of the `databaseMiddleware`.
+This document explains the usage and behavior of the `dbMiddleware`.
 
 ## Overview
 
-The `databaseMiddleware` provides **Flash Transaction** support for the application. It ensures that every procedure runs within an isolated database transaction.
+The `dbMiddleware` is defined in `src/server/core/index.ts` and provides **Flash Transaction** support for the application. It ensures that every procedure runs within an isolated database transaction.
 
 ## Logic Flow
 
@@ -22,8 +22,25 @@ The `databaseMiddleware` provides **Flash Transaction** support for the applicat
     *   **Success**: If the procedure completes without throwing an error, the transaction is automatically **committed** to the database.
     *   **Error**: If the procedure (or any downstream code) throws an exception, the transaction is automatically **rolled back**.
 
+## Code Example
+
+```typescript
+// src/server/core/index.ts
+
+export const dbMiddleware = orpc.middleware(async ({ context, next }) => {
+  return db.transaction(async (tx) => {
+    return next({
+      context: {
+        ...context,
+        db: tx,
+      },
+    });
+  });
+});
+```
+
 ## Benefits
 
 *   **Atomicity**: Ensures all database operations within a request either succeed together or fail together.
-*   **Data Integrity**: Prevents partial states. For example, if a user creation involves writing to `User` and `Account` tables, and the `Account` write fails, the `User` record will not be saved.
+*   **Data Integrity**: Prevents partial states.
 *   **Isolation**: Queries within the transaction see a consistent snapshot of the database.

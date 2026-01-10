@@ -32,14 +32,13 @@ src/
 │  ├─ pages/
 │  └─ utilities/
 └─ server/           # oRPC backend
-   ├─ contexts/      # Service context builders (db/user/session loaders)
-   ├─ core/          # Singleton oRPC instance/wiring
-   ├─ functions/     # Pure business logic (no transport concerns)
-   ├─ libraries/     # Shared libs (e.g., drizzle.ts, redis.ts)
-   ├─ middlewares/   # oRPC middlewares used via `.use`
-   ├─ plugins/       # Transport adapters (Next.js routes, Hono, etc.)
-   ├─ routers/       # oRPC router composition (index.ts, nesting only)
-   └─ services/      # Service groupings (optionally host function bundles)
+   ├─ core/          # Core definitions (AppContext, middlewares, error helpers, orpc instance)
+   ├─ functions/     # Pure business logic functions
+   ├─ libraries/     # Shared libs (drizzle, etc.)
+   ├─ plugins/       # Transport adapters (next.ts, hono.ts)
+   ├─ private/       # Private/Protected RPC procedures (require auth)
+   ├─ public/        # Public RPC procedures
+   └─ routers/       # Router composition
 ```
 
 ## oRPC status & next steps
@@ -48,106 +47,89 @@ src/
   - `src/server/` holds your oRPC routers, plugins, middleware, schemas, and shared libs.
   - `src/client/` holds typed API clients/hooks generated from your contract (or other UI helpers).
 - Typical flow:
-  1) Define routers with `@orpc/server` (e.g., `src/server/routers/...`).
+  1) Define routers with `@orpc/server` (e.g., `src/server/public/...` or `src/server/private/...`).
   2) Export a contract and hook it into your Next.js routes or handlers.
   3) Consume it in the client with `@orpc/client` (hooks/helpers under `src/client`).
 
 ## Documentation
-Detailed documentation for specific parts of the system can be found in the `docs/` directory:
-- [Auth Middleware Flow](docs/authMiddleware.md)
-- [Database Middleware](docs/databaseMiddleware.md)
-- [Public oRPC Usage](docs/publicUsage.md)
-- [Protected oRPC Usage](docs/protectedUsage.md)
+Detailed documentation for specific parts of the system can be found in the `.docs/` directory:
+- [Auth Middleware Flow](.docs/authMiddleware.md)
+- [Database Middleware](.docs/databaseMiddleware.md)
+- [Public oRPC Usage](.docs/publicUsage.md)
+- [Protected oRPC Usage](.docs/protectedUsage.md)
 
-## Example: Hello endpoint (`/orpc/hello-public` & `/orpc/hello-protected`)
+## Example: Hello endpoint (`/orpc/hello-public` & `/orpc/hello-private`)
 
 Files involved:
-- `src/server/core/index.ts` – `orpc` instance with context typing (`AppContext`).
-- `src/server/libraries/drizzle.ts` – Drizzle client with `authSchema` registered.
-- `src/server/contexts/index.ts` – `AppContext` shape including `req` and `auth` status.
-- `src/server/middlewares/databaseMiddleware.ts` – wrappers for transaction safety.
-- `src/server/middlewares/authMiddleware.ts` – cookie-based auth verification (cookie -> db check).
-- `src/server/functions/hello.function.ts` – shared pure logic (database ping).
-- `src/server/services/public/hello.service.ts` – Public endpoint example.
-- `src/server/services/auth/hello.service.ts` – Protected endpoint example.
-- `src/server/routers/index.ts` – mounts routers with kebab-case keys.
+- `src/server/core/index.ts` – Central definition of `orpc` instance, `AppContext`, middlewares (`authMiddleware`, `dbMiddleware`), and error helpers (`InternalServerError`, `Unauthorized`, etc.).
+- `src/server/functions/Hello.ts` – Shared pure logic (database ping).
+- `src/server/public/HelloRPC.ts` – Public endpoint example.
+- `src/server/private/HelloRPC.ts` – Protected endpoint example.
+- `src/server/routers/index.ts` – Mounts routers.
 
 ### Code Snippets
 
-**Context Definition**
+**Core Definition (Context & Middlewares)**
 ```ts
-// server/contexts/index.ts
-import type { Drizzle } from "@/server/libraries/drizzle";
-
+// src/server/core/index.ts
 export type AppContext = {
   db: Drizzle;
   req: Request;
   requestId: string;
-  status: string;
   auth: "true" | "false";
 };
-```
 
-**Drizzle Client**
-```ts
-// server/libraries/drizzle.ts
-import { drizzle } from "drizzle-orm/postgres-js";
-import postgres from "postgres";
-import * as schema from "@/server/libraries/authSchema";
+export const orpc = os.$context<AppContext>();
 
-const client = postgres(process.env.DATABASE_URL!, {
-  ssl: "require",
-  // ... timeouts
+export const authMiddleware = orpc.middleware(async ({ context, next }) => {
+  // ... checks cookie, verifies with DB ...
+  return next({
+    context: {
+      ...context,
+      auth, // "true" or "false"
+    },
+  });
 });
 
-export const db = drizzle(client, { schema });
+export const dbMiddleware = orpc.middleware(async ({ context, next }) => {
+  return db.transaction(async (tx) => {
+    return next({
+      context: {
+        ...context,
+        db: tx, // inject transaction
+      },
+    });
+  });
+});
 ```
 
-**Auth Middleware (High Performance)**
+**Service Example (Public)**
 ```ts
-// server/middlewares/authMiddleware.ts
-export const authMiddleware = orpc
-    .$context<AppContext>()
-    .middleware(async ({ context, next }) => {
-        // 1. Check & Parse Cookie Locally (No external Fetch)
-        const cookieHeader = context.req.headers.get("cookie");
-        // ... (extract token via Regex)
-
-        // 2. Direct Index-Optimized DB Lookup
-        // ... (query session table for token existence)
-
-        return next({
-            context: { ...context, auth: isValid ? "true" : "false" },
-        });
-    });
+// src/server/public/HelloRPC.ts
+export const HelloPublicRPC = core.orpc
+  .use(core.dbMiddleware)
+  .use(onStart(HelloStart))
+  .route({ method: "GET", path: "/hello-public" })
+  .input(HelloInput)
+  .output(HelloOutput)
+  .handler(async ({ context }) => {
+     const result = await HelloFunction(context);
+     return core.Success(context, result.response);
+  });
 ```
 
 **Service Example (Protected)**
 ```ts
-// server/services/auth/hello.service.ts
-export const hello_protected = orpc
-  .use(authMiddleware)
-  .use(databaseMiddleware)
-  .use(onStart(hello_cycle_start))
-  .route({ method: "GET", path: "/hello-protected" })
-  .input(z.object({}).optional())
-  .output(hello_output)
+// src/server/private/HelloRPC.ts
+export const HelloPrivateRPC = core.orpc
+  .use(core.authMiddleware) // Applied auth middleware
+  .use(core.dbMiddleware)
+  .route({ method: "GET", path: "/hello-private" })
+  // ...
   .handler(async ({ context }) => {
      if (context.auth !== "true") {
-         return { status: "HTTP/1.1 401 Unauthorized", ... };
+       throw core.Unauthorized(context);
      }
-     // ... business logic
+     // ...
   });
 ```
-
-**Router Composition**
-```ts
-// server/routers/index.ts
-export const appRouter = orpc.router({
-  "hello-public": hello_public,
-  "hello-protected": hello_protected,
-});
-```
-
-## Notes
-- The included UI in `src/app/(pages)/page.tsx` is already wired to `hello`; extend it or replace it with your own pages.

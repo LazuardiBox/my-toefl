@@ -6,29 +6,31 @@ This document demonstrates how to create a public oRPC endpoint using the `hello
 
 The `hello-public` procedure is a simple endpoint that:
 1.  Is accessible to everyone (no authentication required).
-2.  Connects to the database using `databaseMiddleware`.
-3.  Executes a `pingDatabase` function.
-4.  Returns a success or error status based on the database ping result.
+2.  Connects to the database using `dbMiddleware`.
+3.  Executes a `HelloFunction`.
+4.  Returns a success response using `core.Success` or throws an error.
 
 ## Function Logic
 
-This function, located in `src/server/functions/hello.function.ts`, performs the actual database check.
+This function, located in `src/server/functions/Hello.ts`, performs the actual database check.
 
 ```typescript
-// src/server/functions/hello.function.ts
+// src/server/functions/Hello.ts
 
-import type { Drizzle } from "@/server/libraries/drizzle";
+import { performance } from "node:perf_hooks";
+import * as core from "@/server/core";
 
-export async function pingDatabase(database: Drizzle, maxMs = 28) {
+const MAX_PING_MS = 100;
+
+export async function HelloFunction(context: core.AppContext) {
   const startedAt = performance.now();
 
-  await database.execute("select 1");
+  await context.db.execute("select 1");
 
-  const endedAt = performance.now();
-  const duration = endedAt - startedAt;
+  const duration = performance.now() - startedAt;
 
-  if (duration > maxMs) {
-    throw new Error();
+  if (duration > MAX_PING_MS) {
+    throw core.InternalServerError(context);
   }
 
   return {
@@ -39,73 +41,49 @@ export async function pingDatabase(database: Drizzle, maxMs = 28) {
 
 ## Service Definition
 
-The service, located in `src/server/services/public/hello.service.ts`, defines the route, schema, and handler.
+The service, located in `src/server/public/HelloRPC.ts`, defines the route, schema, and handler.
 
 ```typescript
-/* ----------------- import module ----------------------- */
+// src/server/public/HelloRPC.ts
 
 import { randomBytes } from "node:crypto";
 import { onStart } from "@orpc/server";
 import { z } from "zod";
-import { orpc } from "@/server/core";
-import type { AppContext } from "@/server/contexts";
+import * as core from "@/server/core";
+import { HelloFunction } from "@/server/functions/Hello";
 
-/* ----------------- import function ----------------------- */
-
-import { pingDatabase } from "@/server/functions/hello.function";
-import { databaseMiddleware } from "@/server/middlewares/databaseMiddleware";
-
-/* ----------------- expose router ----------------------- */
-
-const hello_route = {
-    method: "GET",
-    path: "/hello-public",
+const HelloRoute = {
+  method: "GET",
+  path: "/hello-public",
 } as const;
 
-/* ----------------- schema ----------------------- */
-
-const hello_input = z.object({}).optional();
-const hello_output = z.object({
+const HelloInput = z.object({}).optional();
+const HelloOutput = z.object({
+  data: z.object({
     result: z.string(),
-    status: z
-        .literal("HTTP/1.1 200 OK")
-        .or(z.literal("HTTP/1.1 500 Internal Server Error")),
     requestId: z.string(),
+  }),
 });
 
-/* ----------------- lifecycle ----------------------- */
-
-function hello_cycle_start({ context }: { context: AppContext }) {
-    context.requestId = `${randomBytes(4).toString("hex")}-${Date.now()}`;
+function HelloStart({ context }: { context: core.AppContext }) {
+  context.requestId = `${randomBytes(4).toString("hex")}-${Date.now()}`;
 }
 
-/* ----------------- function ----------------------- */
+async function HelloHandler({ context }: { context: core.AppContext }) {
+  try {
+    const result = await HelloFunction(context);
 
-async function hello_function({ context }: { context: AppContext }) {
-    try {
-        const result = await pingDatabase(context.db);
-
-        return {
-            status: "HTTP/1.1 200 OK" as const,
-            requestId: context.requestId,
-            result: result.response,
-        };
-    } catch (_error) {
-        return {
-            status: "HTTP/1.1 500 Internal Server Error" as const,
-            requestId: context.requestId,
-            result: "An unexpected error occurred while processing your request.",
-        };
-    }
+    return core.Success(context, result.response);
+  } catch (_error) {
+    throw core.InternalServerError(context);
+  }
 }
 
-/* ----------------- router ----------------------- */
-
-export const hello_public = orpc
-    .use(databaseMiddleware)
-    .use(onStart(hello_cycle_start))
-    .route(hello_route)
-    .input(hello_input)
-    .output(hello_output)
-    .handler(hello_function);
+export const HelloPublicRPC = core.orpc
+  .use(core.dbMiddleware)
+  .use(onStart(HelloStart))
+  .route(HelloRoute)
+  .input(HelloInput)
+  .output(HelloOutput)
+  .handler(HelloHandler);
 ```

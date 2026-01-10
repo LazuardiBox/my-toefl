@@ -1,123 +1,70 @@
 # Protected oRPC Usage
 
-This document demonstrates how to create a protected oRPC endpoint using the `hello-protected` example.
+This document demonstrates how to create a protected oRPC endpoint using the `hello-private` example.
 
 ## Overview
 
-The `hello-protected` procedure acts similarly to the public one but enforces strict authentication.
-1.  It uses `authMiddleware` to verify the session.
-2.  If the user is not authenticated, it returns a `401 Unauthorized` status.
-3.  It connects to the database via `databaseMiddleware`.
-4.  It executes the shared `pingDatabase` function.
+The `hello-private` procedure acts similarly to the public one but enforces strict authentication.
+1.  It uses `authMiddleware` to populate the `auth` context.
+2.  It checks `context.auth` in the handler and throws `core.Unauthorized(context)` if "false".
+3.  It connects to the database via `dbMiddleware`.
+4.  It executes the shared `HelloFunction`.
 
 ## Function Logic
 
-It reuses the same logic as the public service.
-
-```typescript
-// src/server/functions/hello.function.ts
-
-import type { Drizzle } from "@/server/libraries/drizzle";
-
-export async function pingDatabase(database: Drizzle, maxMs = 28) {
-  const startedAt = performance.now();
-
-  await database.execute("select 1");
-
-  const endedAt = performance.now();
-  const duration = endedAt - startedAt;
-
-  if (duration > maxMs) {
-    throw new Error();
-  }
-
-  return {
-    response: `PONG in ${Math.round(duration)}ms`,
-  };
-}
-```
+It reuses the same logic as the public service (`src/server/functions/Hello.ts`).
 
 ## Service Definition
 
-The service, located in `src/server/services/auth/hello.service.ts`, explicitly checks `context.auth`.
+The service, located in `src/server/private/HelloRPC.ts`, explicitly checks `context.auth`.
 
 ```typescript
-/* ----------------- import module ----------------------- */
+// src/server/private/HelloRPC.ts
 
 import { randomBytes } from "node:crypto";
 import { onStart } from "@orpc/server";
 import { z } from "zod";
-import { orpc } from "@/server/core";
-import type { AppContext } from "@/server/contexts";
+import * as core from "@/server/core";
+import { HelloFunction } from "@/server/functions/Hello";
 
-/* ----------------- import function ----------------------- */
-
-import { pingDatabase } from "@/server/functions/hello.function";
-import { authMiddleware } from "@/server/middlewares/authMiddleware";
-import { databaseMiddleware } from "@/server/middlewares/databaseMiddleware";
-
-/* ----------------- expose router ----------------------- */
-
-const hello_route = {
+const HelloRoute = {
   method: "GET",
-  path: "/hello-protected",
+  path: "/hello-private",
 } as const;
 
-/* ----------------- schema ----------------------- */
-
-const hello_input = z.object({}).optional();
-const hello_output = z.object({
-  result: z.string(),
-  status: z
-    .literal("HTTP/1.1 200 OK")
-    .or(z.literal("HTTP/1.1 401 Unauthorized"))
-    .or(z.literal("HTTP/1.1 500 Internal Server Error")),
-  requestId: z.string(),
+const HelloInput = z.object({}).optional();
+const HelloOutput = z.object({
+  data: z.object({
+    result: z.string(),
+    requestId: z.string(),
+  }),
 });
 
-/* ----------------- lifecycle ----------------------- */
-
-function hello_cycle_start({ context }: { context: AppContext }) {
+function HelloStart({ context }: { context: core.AppContext }) {
   context.requestId = `${randomBytes(4).toString("hex")}-${Date.now()}`;
 }
 
-/* ----------------- function ----------------------- */
-
-async function hello_function({ context }: { context: AppContext }) {
-  // Check Authentication Status
+async function HelloHandler({ context }: { context: core.AppContext }) {
+  // Enforce Authentication
   if (context.auth !== "true") {
-    return {
-      status: "HTTP/1.1 401 Unauthorized" as const,
-      requestId: context.requestId,
-      result: "An unexpected error occurred while processing your request.",
-    };
+    throw core.Unauthorized(context);
   }
 
   try {
-    const result = await pingDatabase(context.db);
+    const result = await HelloFunction(context);
 
-    return {
-      status: "HTTP/1.1 200 OK" as const,
-      requestId: context.requestId,
-      result: result.response,
-    };
+    return core.Success(context, result.response);
   } catch (_error) {
-    return {
-      status: "HTTP/1.1 500 Internal Server Error" as const,
-      requestId: context.requestId,
-      result: "An unexpected error occurred while processing your request.",
-    };
+    throw core.InternalServerError(context);
   }
 }
 
-/* ----------------- router ----------------------- */
-
-export const hello_protected = orpc
-  .use(authMiddleware)
-  .use(databaseMiddleware)
-  .use(onStart(hello_cycle_start))
-  .route(hello_route)
-  .input(hello_input)
-  .output(hello_output)
-  .handler(hello_function);
+export const HelloPrivateRPC = core.orpc
+  .use(core.authMiddleware) // Populates context.auth
+  .use(core.dbMiddleware)
+  .use(onStart(HelloStart))
+  .route(HelloRoute)
+  .input(HelloInput)
+  .output(HelloOutput)
+  .handler(HelloHandler);
 ```
