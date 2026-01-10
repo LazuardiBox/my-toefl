@@ -1,4 +1,4 @@
-import type { AppContext } from "@/server/contexts";
+import type { AppContext } from "@/server/core";
 import { db } from "@/server/libraries/drizzle";
 import { rpcHandler } from "@/server/plugins/next";
 
@@ -9,9 +9,8 @@ async function handleRequest(request: Request) {
     prefix,
     context: {
       req: request,
-      db,
+      db: db,
       requestId: crypto.randomUUID(),
-      status: "pending",
       auth: "false",
     } satisfies AppContext,
   });
