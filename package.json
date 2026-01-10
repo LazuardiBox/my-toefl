@@ -8,7 +8,8 @@
     "start": "bun --bun next start",
     "lint": "biome check",
     "format": "biome format --write",
-    "fix": "biome check --write"
+    "fix": "biome check --write",
+    "backup": "sh .scripts/backup.sh"
   },
   "dependencies": {
     "@orpc/client": "^1.13.2",
