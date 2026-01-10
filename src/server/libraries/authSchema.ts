@@ -1,3 +1,5 @@
+// @/src/server/libraries/authSchema.ts
+
 import { relations } from "drizzle-orm";
 import { boolean, index, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 
