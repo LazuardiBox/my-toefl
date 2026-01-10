@@ -6,10 +6,13 @@ import { useState } from "react";
 
 import { useHelloQuery } from "@/client/hooks/hello";
 
+import { HugeiconsIcon } from '@hugeicons/react';
+import { Loading02Icon } from '@hugeicons/core-free-icons';
+
 function HelloContent() {
   const queryClient = useQueryClient();
   const [hasRequested, setHasRequested] = useState(false);
-  const { data, isFetching, error, refetch, isFetched } = useHelloQuery(false);
+  const { data: HookResponse, isFetching, error, refetch, isFetched } = useHelloQuery(false);
 
   const statusLabel = (() => {
     if (isFetching) return "Loading";
@@ -26,28 +29,27 @@ function HelloContent() {
             Hello Endpoint
           </p>
           <p className="text-xl font-semibold text-zinc-900">
-            {data?.result ?? "Call the API to see the response"}
+            {HookResponse?.data?.result ?? "Call the API to see the response"}
           </p>
         </div>
         <span className="rounded-full border border-zinc-200 bg-zinc-100 px-3 py-1 text-xs font-medium uppercase tracking-wide text-zinc-700">
           {statusLabel}
         </span>
       </div>
-      {error ? (
-        <p className="text-sm text-red-600">
-          Error: {(error as Error).message ?? "Unknown error"}
-        </p>
-      ) : null}
       <div className="space-y-2">
         <p className="text-sm font-semibold text-zinc-800">JSON Response</p>
+
         <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-4 font-mono text-sm text-zinc-800">
           <pre className="whitespace-pre-wrap break-words">
-            {data
-              ? JSON.stringify(data, null, 2)
-              : "// No response yet. Call the API to view the payload."}
+            {error
+              ? `Error: ${(error as Error).message || "Unknown error"}`
+              : HookResponse
+                ? JSON.stringify(HookResponse.data?.result)
+                : "No response yet. Call the API to view the response."}
           </pre>
         </div>
       </div>
+
       <div className="flex gap-3">
         <button
           type="button"
@@ -55,11 +57,22 @@ function HelloContent() {
             setHasRequested(true);
             await refetch();
           }}
-          className="flex flex-1 items-center justify-center rounded-md bg-black px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-zinc-800 active:bg-zinc-900 disabled:cursor-not-allowed disabled:opacity-60"
+          className="flex flex-1 items-center justify-center gap-2 rounded-md bg-black px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-zinc-800 active:bg-zinc-900 disabled:cursor-not-allowed disabled:opacity-60"
           disabled={isFetching}
         >
-          {isFetching ? "Calling..." : "Call API"}
+          {isFetching ? (
+            <HugeiconsIcon
+              icon={Loading02Icon}
+              size={18}
+              color="currentColor"
+              strokeWidth={1.5}
+              className="animate-spin"
+            />
+          ) : (
+            "Call API"
+          )}
         </button>
+
         <button
           type="button"
           onClick={() => {
@@ -72,7 +85,7 @@ function HelloContent() {
           Reset
         </button>
       </div>
-    </div>
+    </div >
   );
 }
 
