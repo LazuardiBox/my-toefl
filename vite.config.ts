@@ -15,14 +15,23 @@ const config = defineConfig({
   plugins: [
     devtools(),
     nitro(),
-    // this is the plugin that enables path aliases
     viteTsConfigPaths({
       projects: ['./tsconfig.json'],
     }),
 
-    tanstackStart(),
+    tanstackStart({
+      srcDirectory: '.',
+      router: {
+        entry: 'router/router',
+        routesDirectory: 'src/client/routes',
+        generatedRouteTree: 'router/routeTree.gen.ts',
+      },
+    }),
     viteReact(),
   ],
+  server: {
+    allowedHosts: true,
+  },
 })
 
 export default config

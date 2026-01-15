@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import '../App.css'
+import '@/client/assets/global.css'
 
 export const Route = createFileRoute('/')({ component: App })
 
@@ -13,7 +13,7 @@ function App() {
           alt="TanStack Logo"
         />
         <p>
-          Edit <code>src/routes/index.tsx</code> and save to reload.
+          Edit <code>src/client/routes/index.tsx</code> and save to reload.
         </p>
         <a
           className="App-link"
