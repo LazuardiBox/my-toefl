@@ -1,36 +1,55 @@
 // @/routers/routes.tsx
 
-import { Route } from '@/routers/layout'
-import { Route as oRPCRoutes } from '@/routers/orpc'
+import { Route } from "@/routers/layout";
+import { Route as oRPCRoutes } from "@/routers/orpc";
 
-const pageModules = import.meta.glob('../src/client/pages/**/[A-Z]*Route.tsx', {
-    eager: true,
-})
+const pageModules = import.meta.glob("../src/client/pages/**/[A-Z]*Route.tsx", {
+  eager: true,
+});
 
-const routes = Object.values(pageModules).flatMap((mod: any) => {
-    return Object.entries(mod).flatMap(([key, exportItem]: [string, any]) => {
-        const isPascalCaseRoute = /^[A-Z][a-zA-Z0-9]*Routes?$/.test(key)
+type RouteChildren = Parameters<typeof Route.addChildren>[0];
+type RouteChild = RouteChildren extends Array<infer T> ? T : never;
 
-        if (!isPascalCaseRoute || !exportItem) return []
+type RouteCandidate = {
+  addChildren?: unknown;
+  options?: { path?: unknown };
+};
 
-        const isValidRoute = (item: any) =>
-            item &&
-            typeof item === 'object' &&
-            typeof item.addChildren === 'function' &&
-            item.options?.path
+const isRouteChild = (item: unknown): item is RouteChild => {
+  if (!item || typeof item !== "object") {
+    return false;
+  }
 
-        if (Array.isArray(exportItem)) {
-            return exportItem.filter(isValidRoute)
-        }
+  const candidate = item as RouteCandidate;
+  return (
+    typeof candidate.addChildren === "function" &&
+    typeof candidate.options?.path === "string"
+  );
+};
 
-        if (isValidRoute(exportItem)) {
-            return [exportItem]
-        }
+const routes = Object.values(pageModules).flatMap((moduleExports) => {
+  if (!moduleExports || typeof moduleExports !== "object") {
+    return [] as RouteChild[];
+  }
 
-        return []
-    })
-})
+  return Object.entries(moduleExports as Record<string, unknown>).flatMap(
+    ([key, exportItem]) => {
+      const isPascalCaseRoute = /^[A-Z][a-zA-Z0-9]*Routes?$/.test(key);
 
-export const routeTree = Route.addChildren(
-    [...routes, oRPCRoutes] as any,
-)
+      if (!isPascalCaseRoute) {
+        return [];
+      }
+
+      if (Array.isArray(exportItem)) {
+        return exportItem.filter(isRouteChild);
+      }
+
+      return isRouteChild(exportItem) ? [exportItem] : [];
+    },
+  );
+});
+
+export const routeTree = Route.addChildren([
+  ...routes,
+  oRPCRoutes,
+] as RouteChildren);
