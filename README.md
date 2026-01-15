@@ -27,17 +27,17 @@ bun --bun run test
 
 ## Styling
 
-This project uses CSS for styling.
+This project uses [Tailwind CSS](https://tailwindcss.com/) for styling.
 
 
 
 
 ## Routing
-This project uses [TanStack Router](https://tanstack.com/router). The initial setup is a file based router. Which means that the routes are managed as files in `src/client/routes`.
+This project uses [TanStack Router](https://tanstack.com/router). The initial setup is a file based router. Which means that the routes are managed as files in `src/routes`.
 
 ### Adding A Route
 
-To add a new route to your application just add another a new file in the `./src/client/routes` directory.
+To add a new route to your application just add another a new file in the `./src/routes` directory.
 
 TanStack will automatically generate the content of the route file for you.
 
@@ -63,7 +63,7 @@ More information on the `Link` component can be found in the [Link documentation
 
 ### Using A Layout
 
-In the File Based Routing setup the layout is located in `src/client/routes/__root.tsx`. Anything you add to the root route will appear in all the routes. The route content will appear in the JSX where you use the `<Outlet />` component.
+In the File Based Routing setup the layout is located in `src/routes/__root.tsx`. Anything you add to the root route will appear in all the routes. The route content will appear in the JSX where you use the `<Outlet />` component.
 
 Here is an example layout that includes a header:
 

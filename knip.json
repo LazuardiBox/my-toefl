@@ -1,0 +1,31 @@
+{
+  "ignore": [
+    "src/client/assets/global.css",
+    "src/client/pages/HomeRoute.tsx",
+    "routers/entry-client.tsx",
+    "routers/entry-server.tsx",
+    "routers/index.tsx",
+    "routers/layout.tsx",
+    "routers/routes.tsx",
+    "routers/orpc.ts",
+    "src/server/core/index.ts",
+    "src/server/functions/Hello.ts",
+    "src/server/libraries/authSchema.ts",
+    "src/server/libraries/drizzle.ts",
+    "src/server/plugins/hono.ts",
+    "src/server/routers/index.ts",
+    "src/server/services/private/HelloRPC.ts",
+    "src/server/services/public/HelloRPC.ts"
+  ],
+  "ignoreDependencies": [
+    "@hugeicons/core-free-icons",
+    "@hugeicons/react",
+    "@orpc/client",
+    "@orpc/server",
+    "@tanstack/react-router",
+    "drizzle-orm",
+    "postgres",
+    "tailwindcss",
+    "drizzle-kit"
+  ]
+}

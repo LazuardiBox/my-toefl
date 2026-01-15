@@ -22,7 +22,9 @@
     "noUncheckedSideEffectImports": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["src/*"],
+      "@/routers": ["routers/index.tsx"],
+      "@/routers/*": ["routers/*"]
     }
   }
 }
