@@ -1,6 +1,6 @@
 import { HeadContent, Scripts, createRootRoute } from '@tanstack/react-router'
 
-import appCss from '../../styles.css?url'
+import GlobalCSS from '@/client/assets/global.css?url'
 
 export const Route = createRootRoute({
   head: () => ({
@@ -19,7 +19,7 @@ export const Route = createRootRoute({
     links: [
       {
         rel: 'stylesheet',
-        href: appCss,
+        href: GlobalCSS,
       },
     ],
   }),
