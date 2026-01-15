@@ -8,6 +8,8 @@ import {
 } from '@tanstack/react-router'
 
 import appCss from '@/client/assets/global.css?url'
+import { QueryProvider } from '@/client/contexts/queryProvider'
+import type { ReactNode } from 'react'
 
 export const Route = createRootRoute({
     head: () => ({
@@ -39,14 +41,16 @@ export const Route = createRootRoute({
     notFoundComponent: NotFoundLayout,
 })
 
-function RootLayout({ children }: { children: React.ReactNode }) {
+function RootLayout({ children }: { children: ReactNode }) {
     return (
         <html lang="en">
             <head>
                 <HeadContent />
             </head>
             <body>
-                {children}
+                <QueryProvider>
+                    {children}
+                </QueryProvider>
                 <Scripts />
             </body>
         </html>
