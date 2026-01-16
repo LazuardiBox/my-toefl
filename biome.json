@@ -26,6 +26,9 @@
     "enabled": true,
     "rules": {
       "recommended": true,
+      "nursery": {
+        "recommended": false
+      },
       "suspicious": {
         "noUnknownAtRules": "off",
         "noDocumentCookie": "off"

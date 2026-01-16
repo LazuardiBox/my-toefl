@@ -8,6 +8,16 @@ type WarningHandler = (
 export function filterTanStackUnusedImports(): WarningHandler {
   return (warning, warn) => {
     if (
+      warning.code === "MODULE_LEVEL_DIRECTIVE" ||
+      (typeof warning.message === "string" &&
+        warning.message.includes(
+          "Module level directives cause errors when bundled",
+        ))
+    ) {
+      return;
+    }
+
+    if (
       warning.code === "MODULE_LEVEL_DIRECTIVE" &&
       typeof warning.message === "string" &&
       warning.message.includes('"use client"')
@@ -16,10 +26,10 @@ export function filterTanStackUnusedImports(): WarningHandler {
     }
 
     if (
-      warning.code === "UNUSED_EXTERNAL_IMPORT" &&
+      (warning.code === "UNUSED_EXTERNAL_IMPORT" ||
+        warning.message.includes("never used")) &&
       typeof warning.message === "string" &&
-      warning.message.includes("node_modules/@tanstack/start-") &&
-      warning.message.includes("never used")
+      warning.message.includes("node_modules/@tanstack/")
     ) {
       return;
     }

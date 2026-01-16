@@ -8,6 +8,8 @@ import viteTsConfigPaths from "vite-tsconfig-paths";
 import { customRoutesManifestPlugin } from "./scripts/manifestGenerator";
 import { filterTanStackUnusedImports } from "./scripts/rollupWarnings";
 
+const tanStackOnWarn = filterTanStackUnusedImports();
+
 export default defineConfig({
   resolve: {
     alias: {
@@ -15,22 +17,12 @@ export default defineConfig({
       "@": fileURLToPath(new URL("./src", import.meta.url)),
     },
   },
-  esbuild: {
-    logLevel: "silent",
-    logOverride: {
-      "module-level-directive": "silent",
-    },
-  },
-  optimizeDeps: {
-    esbuildOptions: {
-      logLevel: "silent",
-      logOverride: {
-        "module-level-directive": "silent",
-      },
-    },
-  },
   plugins: [
-    nitro(),
+    nitro({
+      rollupConfig: {
+        onwarn: tanStackOnWarn,
+      },
+    }),
     viteTsConfigPaths({
       projects: ["./tsconfig.json"],
     }),
@@ -49,7 +41,7 @@ export default defineConfig({
   ],
   build: {
     rollupOptions: {
-      onwarn: filterTanStackUnusedImports(),
+      onwarn: tanStackOnWarn,
     },
   },
   server: {
