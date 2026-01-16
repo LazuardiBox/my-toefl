@@ -27,7 +27,7 @@ import {
   ToggleGroup,
   ToggleGroupItem,
 } from "@/client/components/ui/toggle-group";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { useIsMobile } from "@/client/hooks/useMobile";
 
 export const description = "An interactive area chart";
 
